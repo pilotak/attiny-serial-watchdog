@@ -1,0 +1,33 @@
+name: build
+
+on:
+  push:
+    paths-ignore:
+      - "README.md"
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check conventional commits
+        uses: webiny/action-conventional-commits@v1.3.1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --upgrade platformio
+
+      - name: Build
+        run: |
+          pio run

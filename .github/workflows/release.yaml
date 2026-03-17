@@ -1,0 +1,62 @@
+name: release
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  release_helper:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: simple
+
+  release:
+    needs: release_helper
+    if: ${{ needs.release_helper.outputs.release }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Build
+        run: pio run
+
+      - name: Prepare files
+        run: |
+          set -eux
+          mkdir -p dist
+          for path in ./.pio/build/*/; do
+            name="$(basename "$path")"
+            mv "$path/firmware.hex" "dist/$name.hex"
+          done
+
+      - name: Upload files to existing release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload \
+            "${{ needs.release_helper.outputs.version }}" \
+            dist/*.hex \
+            --clobber
